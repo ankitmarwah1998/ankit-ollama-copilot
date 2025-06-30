@@ -1,5 +1,1 @@
-print("This is for PR testing")
-print("Testing PR")
-print("AI PR test")
-print("Testing again")
-print("Test PR from Ankit")
+print("This is a test for Ollama PR trigger")
