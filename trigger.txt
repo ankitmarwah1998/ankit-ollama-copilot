@@ -7,3 +7,4 @@
 # Trigger GH comment fix
 # Trigger GitHub Action
 # New Ollama Trigger
+Trigger after permission fix
