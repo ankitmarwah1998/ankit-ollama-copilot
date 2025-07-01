@@ -8,8 +8,8 @@ if [ ! -f response.json ]; then
   exit 1
 fi
 
-# Escape newlines for GitHub comment
-ESCAPED=$(cat response.json | sed ':a;N;$!ba;s/\n/\\n/g')
+# Escape JSON properly
+ESCAPED=$(cat response.json | sed ':a;N;$!ba;s/"/\\"/g; s/\n/\\n/g')
 
 # Ensure PR_URL is set
 if [ -z "$PR_URL" ]; then
@@ -21,6 +21,9 @@ fi
 REPO=$(echo "$PR_URL" | awk -F '/' '{print $(NF-3) "/" $(NF-2)}')
 PR_NUMBER=$(echo "$PR_URL" | awk -F '/' '{print $NF}')
 
-# Add comment to PR
-gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$ESCAPED"
+# Post comment using gh api
+gh api repos/$REPO/issues/$PR_NUMBER/comments \
+  --method POST \
+  --header "Accept: application/vnd.github+json" \
+  -f body="$ESCAPED"
 
