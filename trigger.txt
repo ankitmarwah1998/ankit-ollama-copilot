@@ -8,3 +8,4 @@
 # Trigger GitHub Action
 # New Ollama Trigger
 Trigger after permission fix
+trigger retry
