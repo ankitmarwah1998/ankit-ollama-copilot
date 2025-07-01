@@ -22,9 +22,12 @@ jobs:
 
       - name: 📤 Generate PR Diff
         run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
+          git fetch --unshallow || true
+          git fetch origin
           git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
+          # git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          # git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
+          # git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
       - name: 🤖 Send Diff to Ollama API
         run: |
