@@ -1,42 +1,42 @@
 name: Analyze PR with Ollama
 
 on:
-pull_request:
-types: [opened, synchronize]
+  pull_request:
+    types: [opened, synchronize]
 
 jobs:
-analyze:
-runs-on: ubuntu-latest
+  analyze:
+    runs-on: ubuntu-latest
 
-steps:
-  - name: 🧾 Checkout repo
-    uses: actions/checkout@v3
+    steps:
+      - name: 🧾 Checkout repo
+        uses: actions/checkout@v3
 
-  - name: 🛠 Set up Python
-    uses: actions/setup-python@v4
-    with:
-      python-version: '3.10'
+      - name: 🛠 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-  - name: 📦 Install dependencies
-    run: pip install -r requirements.txt
+      - name: 📦 Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-  - name: 📤 Generate PR Diff
-    run: |
-      git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-      git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
-      git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
+      - name: 📤 Generate PR Diff
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
+          git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
-  - name: 🤖 Send Diff to Ollama API
-    run: |
-      ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-      curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
-        -H "Content-Type: application/json" \
-        -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
-        > response.json
+      - name: 🤖 Send Diff to Ollama API
+        run: |
+          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
+          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+            -H "Content-Type: application/json" \
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
+            > response.json
 
-  - name: 🔁 Add Ollama AI Response to PR as Comment
-    run: bash scripts/comment-pr.sh
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_EVENT_PATH: ${{ github.event_path }}
-
+      - name: 🔁 Add Ollama AI Response to PR as Comment
+        run: bash scripts/comment-pr.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
