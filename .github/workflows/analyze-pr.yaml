@@ -5,27 +5,39 @@ on:
     types: [opened, synchronize]
 
 jobs:
-  analyze-diff:
+  analyze:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 🧾 Checkout repo
         uses: actions/checkout@v3
 
-      - name: Get PR Diff
-        run: |
-          gh pr diff "$PR_NUMBER" > pr.diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+      - name: 🛠 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-      - name: Send Diff to Ollama API
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 📤 Generate PR Diff
         run: |
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app/analyze \
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
+          git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
+
+      - name: 🤖 Send Diff to Ollama API
+        run: |
+          DIFF=$(cat pr.diff | jq -Rs .)
+        curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$(sed ':a;N;$!ba;s/\n/\\n/g' pr.diff | sed 's/\"/\\"/g')\"}" \
+            -d "{\"diff\": $DIFF}" \
             > response.json
 
-      - name: Show Ollama Response
-        run: cat response.json
+      - name: 🔁 Add Ollama AI Response to PR as Comment
+        run: |
+          echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+          bash scripts/comment-pr.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
