@@ -2,26 +2,25 @@
 
 set -e
 
-# Check if response.json exists
 if [ ! -f response.json ]; then
   echo "❌ response.json not found"
   exit 1
 fi
 
-# Escape JSON properly
+# Escape content
 ESCAPED=$(cat response.json | sed ':a;N;$!ba;s/"/\\"/g; s/\n/\\n/g')
 
-# Ensure PR_URL is set
+# Check PR URL
 if [ -z "$PR_URL" ]; then
   echo "❌ PR_URL not set"
   exit 1
 fi
 
-# Extract repo and PR number
+# Extract PR info
 REPO=$(echo "$PR_URL" | awk -F '/' '{print $(NF-3) "/" $(NF-2)}')
 PR_NUMBER=$(echo "$PR_URL" | awk -F '/' '{print $NF}')
 
-# Post comment using gh api
+# Post comment
 gh api repos/$REPO/issues/$PR_NUMBER/comments \
   --method POST \
   --header "Accept: application/vnd.github+json" \
