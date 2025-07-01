@@ -28,9 +28,10 @@ steps:
 
   - name: 🤖 Send Diff to Ollama API
     run: |
-      curl -X POST https://5b87-182-74-161-50.ngrok-free.app/analyze \
+      ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
+      curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
         -H "Content-Type: application/json" \
-        -d "{\"diff\": \"$(sed ':a;N;$!ba;s/\\n/\\\\n/g' pr.diff | sed 's/\"/\\\\\"/g')\"}" \
+        -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
         > response.json
 
   - name: 🔁 Add Ollama AI Response to PR as Comment
