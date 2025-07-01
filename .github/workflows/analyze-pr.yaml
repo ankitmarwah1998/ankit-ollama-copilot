@@ -18,30 +18,33 @@ jobs:
           python-version: '3.10'
 
       - name: 📦 Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt found, skipping install"
+          fi
 
       - name: 📤 Generate PR Diff
         run: |
-          git fetch --unshallow || true
-          git fetch origin
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
           git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
-          # git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          # git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
-          # git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
       - name: 🤖 Send Diff to Ollama API
         run: |
-          DIFF=$(jq -Rs . < pr.diff)
-          echo "{\"diff\": $DIFF}" > payload.json
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
+          curl -X POST https://5b87-182-74-161-50.ngrok-free.app/analyze \
             -H "Content-Type: application/json" \
-            -d @payload.json \
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
             > response.json
 
-      - name: 🔁 Add Ollama AI Response to PR as Comment
-        run: |
-          echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
-          bash scripts/comment-pr.sh
+      - name: 🔁 Set PR URL in Environment
+        run: echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+
+      - name: 💬 Add Ollama AI Response to PR as Comment
+        run: bash scripts/comment-pr.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ env.PR_URL }}
 
