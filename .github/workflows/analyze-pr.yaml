@@ -29,7 +29,7 @@ jobs:
       - name: 🤖 Send Diff to Ollama API
         run: |
           DIFF=$(cat pr.diff | jq -Rs .)
-        curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
             -H "Content-Type: application/json" \
             -d "{\"diff\": $DIFF}" \
             > response.json
