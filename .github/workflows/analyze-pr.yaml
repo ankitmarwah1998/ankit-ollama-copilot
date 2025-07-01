@@ -31,10 +31,11 @@ jobs:
 
       - name: 🤖 Send Diff to Ollama API
         run: |
-          DIFF=$(cat pr.diff | jq -Rs .)
+          DIFF=$(jq -Rs . < pr.diff)
+          echo "{\"diff\": $DIFF}" > payload.json
           curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": $DIFF}" \
+            -d @payload.json \
             > response.json
 
       - name: 🔁 Add Ollama AI Response to PR as Comment
