@@ -37,6 +37,9 @@ jobs:
             -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
             > response.json
 
+      - name: 📎 Export PR URL to ENV
+        run: echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
+    
       - name: 🔁 Add Ollama AI Response to PR as Comment
         run: bash scripts/comment-pr.sh
         env:
