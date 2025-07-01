@@ -2,51 +2,42 @@ name: Analyze PR with Ollama
 
 on:
   pull_request:
-    branches:
-      - main
+    types: [opened, synchronize]
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      pull-requests: write
-
-    env:
-      PR_URL: ${{ github.event.pull_request.html_url }}
-
     steps:
-      - name: Checkout code
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: 🛠️ Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install flask
+          pip install -r requirements.txt
 
-      - name: Start Flask app
+      - name: 📤 Generate PR diff
         run: |
-          nohup python app.py > flask.log 2>&1 &
-          sleep 5
-          curl -s localhost:5000 || true
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
+          git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
-      - name: Analyze PR diff
+      - name: 🤖 Send PR diff to Ollama API
         run: |
-          git fetch origin main
-          DIFF=$(git diff origin/main...HEAD)
-          echo "$DIFF"
-          curl -X POST http://localhost:5000/analyze \
+          ESCAPED_DIFF=$(cat pr.diff | sed ':a;N;$!ba;s/"/\\"/g; s/\n/\\n/g')
+          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$DIFF\"}" > response.json
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
+            > response.json
 
-      - name: Comment on PR
+      - name: 💬 Add AI Response as Comment on PR
         run: bash scripts/comment-pr.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
 
