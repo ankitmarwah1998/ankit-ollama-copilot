@@ -2,46 +2,50 @@ name: Analyze PR with Ollama
 
 on:
   pull_request:
-    types: [opened, synchronize]
-
-permissions:
-  contents: read 
-  pull-requests: write
+    branches:
+      - main
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      pull-requests: write
+
+    env:
+      PR_URL: ${{ github.event.pull_request.html_url }}
+
     steps:
-      - name: 🧾 Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 🛠 Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📦 Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: 📤 Generate PR Diff
+      - name: Install dependencies
         run: |
-          git fetch origin
-          git checkout ${{ github.event.pull_request.head.ref }}
-          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > pr.diff
+          python -m pip install --upgrade pip
+          pip install flask
 
-      - name: 🤖 Send Diff to Ollama API
+      - name: Start Flask app
         run: |
-          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+          nohup python app.py > flask.log 2>&1 &
+          sleep 5
+          curl -s localhost:5000 || true
+
+      - name: Analyze PR diff
+        run: |
+          git fetch origin main
+          DIFF=$(git diff origin/main...HEAD)
+          echo "$DIFF"
+          curl -X POST http://localhost:5000/analyze \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
-            > response.json
+            -d "{\"diff\": \"$DIFF\"}" > response.json
 
-      - name: 📎 Export PR URL to ENV
-        run: echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_ENV
-    
-      - name: 🔁 Add Ollama AI Response to PR as Comment
+      - name: Comment on PR
         run: bash scripts/comment-pr.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
