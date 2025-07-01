@@ -1,10 +1,10 @@
 #!/bin/bash
 
-set -e
+# Load response safely
+RESPONSE=$(cat response.json)
 
-PR_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-REPO_URL=$(jq --raw-output .repository.full_name "$GITHUB_EVENT_PATH")
+# Escape newlines
+ESCAPED=$(echo "$RESPONSE" | sed ':a;N;$!ba;s/\n/\\n/g')
 
-ANALYSIS=$(cat response.json | jq -r '.analysis')
-
-gh pr comment "$PR_NUMBER" --repo "$REPO_URL" --body "$ANALYSIS"
+# Add comment to PR
+gh pr comment "$PR_URL" --body "$ESCAPED"
