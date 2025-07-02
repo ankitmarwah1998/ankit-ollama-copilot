@@ -1,2 +1,0 @@
-# Trigger Ollama Action1
-# Trigge2r
