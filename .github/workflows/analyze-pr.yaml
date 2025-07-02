@@ -35,7 +35,7 @@ jobs:
           curl -X POST https://5b87-182-74-161-50.ngrok-free.app
             -H "Content-Type: application/json" \
             -d "{\"diff\": \"$(sed ':a;N;$!ba;s/\n/\\n/g' pr.diff | sed 's/\"/\\"/g')\"}" \
-            > response.json
+            -o response.json
 
       - name: Post AI analysis as PR comment
         run: |
