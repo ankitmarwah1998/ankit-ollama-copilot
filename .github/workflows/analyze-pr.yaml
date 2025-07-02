@@ -30,12 +30,14 @@ jobs:
                -H "Accept: application/vnd.github.v3.diff" \
                "${{ github.event.pull_request.url }}" > pr.diff
 
-      - name: Send diff to Flask API (Ollama backend)
+      - name: 🤖 Send Diff to Ollama API
         run: |
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app
-            -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$(sed ':a;N;$!ba;s/\n/\\n/g' pr.diff | sed 's/\"/\\"/g')\"}" \
-            > response.json
+          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
+          curl -X POST "https://5b87-182-74-161-50.ngrok-free.app/analyze" \
+          -H "Content-Type: application/json" \
+          -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
+          > response.json
+
 
       - name: Post AI analysis as PR comment
         run: |

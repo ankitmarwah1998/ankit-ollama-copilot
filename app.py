@@ -6,6 +6,7 @@ app = Flask(__name__)
 def analyze():
     data = request.get_json()
     diff = data.get("diff", "")
+    print("Received diff length:", len(diff))
     return jsonify({"message": f"Received diff of length {len(diff)}"})
 
 if __name__ == "__main__":
