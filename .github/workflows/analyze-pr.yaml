@@ -1,4 +1,4 @@
-name: Analyze PR Diff with Ollama
+name: Analyze PR with Ollama
 
 on:
   pull_request:
@@ -9,41 +9,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout PR code
+      - name: 🧾 Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: 🛠 Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      - name: Install jq and GitHub CLI
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 📤 Generate PR Diff
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq gh
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
+          git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
-      - name: Get PR diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
-               -H "Accept: application/vnd.github.v3.diff" \
-               "${{ github.event.pull_request.url }}" > pr.diff
-
-      - name: 🤖 Send Diff to Ollama API
+      - name: 🤖 Send Diff to Flask Ollama API
         run: |
           ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST "https://5b87-182-74-161-50.ngrok-free.app/analyze" \
-          -H "Content-Type: application/json" \
-          -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
-          > response.json
+          curl -X POST https://5b87-182-74-161-50.ngrok-free.app/analyze \
+            -H "Content-Type: application/json" \
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
+            > response.json
 
+      - name: 🧪 Print API Response
+        run: cat response.json
 
-      - name: Post AI analysis as PR comment
+      - name: 📝 Comment on PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           analysis=$(jq -r '.analysis' response.json)
           echo "$analysis" > comment.md
           gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
