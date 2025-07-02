@@ -1,4 +1,4 @@
-name: Analyze PR Diff with Ollama
+name: Analyze PR Diff with AI
 
 on:
   pull_request:
@@ -8,40 +8,33 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
 
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      NGROK_URL: ${{ secrets.NGROK_URL }}
+
     steps:
-      - name: Checkout PR code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install jq and GitHub CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq gh
+      - name: Install jq
+        run: sudo apt-get install -y jq
 
       - name: Get PR diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
-               -H "Accept: application/vnd.github.v3.diff" \
-               "${{ github.event.pull_request.url }}" > pr.diff
+          git fetch origin main --depth=1
+          git diff origin/main...HEAD > pr.diff
 
-      - name: Send diff to Flask API (Ollama backend)
+      - name: Send PR diff to Flask API
         run: |
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app
+          curl -X POST $NGROK_URL/analyze \
             -H "Content-Type: application/json" \
             -d "{\"diff\": \"$(sed ':a;N;$!ba;s/\n/\\n/g' pr.diff | sed 's/\"/\\"/g')\"}" \
-            -o response.json
+            > response.json
 
-      - name: Post AI analysis as PR comment
+      - name: Extract analysis and comment on PR
         run: |
           analysis=$(jq -r '.analysis' response.json)
           echo "$analysis" > comment.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          gh pr comment "$PR_URL" --body-file comment.md
 
