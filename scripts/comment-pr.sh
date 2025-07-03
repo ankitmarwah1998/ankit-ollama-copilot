@@ -1,10 +1,5 @@
 #!/bin/bash
+analysis=$(jq -r '.analysis' response.json)
+echo "$analysis" > comment.md
+gh pr comment "$PR_NUMBER" --body-file comment.md
 
-# Load response safely
-RESPONSE=$(cat response.json)
-
-# Escape newlines
-ESCAPED=$(echo "$RESPONSE" | sed ':a;N;$!ba;s/\n/\\n/g')
-
-# Add comment to PR
-gh pr comment "$PR_URL" --body "$ESCAPED"
