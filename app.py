@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from model import analyze_diff
 
 app = Flask(__name__)
 
@@ -6,12 +7,9 @@ app = Flask(__name__)
 def analyze():
     data = request.get_json()
     diff = data.get("diff", "")
-    
-    if not diff:
-        return jsonify({"error": "No diff provided"}), 400
-
-    return jsonify({"message": f"Received diff of length {len(diff)}"})
+    result = analyze_diff(diff)
+    return jsonify({"analysis": result})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True, port=5000)
 
