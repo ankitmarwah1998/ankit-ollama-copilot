@@ -16,7 +16,7 @@ steps:
   - name: Checkout repository
     uses: actions/checkout@v4
     with:
-      fetch-depth: 0
+      fetch-depth: 0  # Full history needed for diff
 
   - name: Set up Python
     uses: actions/setup-python@v5
@@ -24,7 +24,7 @@ steps:
       python-version: "3.10"
 
   - name: Install jq
-    run: sudo apt-get update && sudo apt-get install -y jq
+    run: sudo apt-get install -y jq
 
   - name: Generate PR Diff
     run: |
@@ -35,7 +35,7 @@ steps:
     run: |
       curl -X POST "$NGROK_URL/analyze" \
         -H "Content-Type: application/json" \
-        -d "{\"diff\": \"$(cat pr.diff | sed 's/\"/\\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
+        -d "{\"diff\": \"$(cat pr.diff | sed 's/\"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
         -o response.json
 
   - name: Extract analysis from response
