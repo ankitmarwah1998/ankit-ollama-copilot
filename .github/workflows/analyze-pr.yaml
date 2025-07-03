@@ -1,49 +1,49 @@
 name: Analyze Pull Request
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+pull_request:
+types: [opened, synchronize]
 
 jobs:
-  analyze:
-    runs-on: ubuntu-latest
+analyze:
+runs-on: ubuntu-latest
 
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      NGROK_URL: ${{ secrets.NGROK_URL }}
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  NGROK_URL: ${{ secrets.NGROK_URL }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history needed for diff
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+    with:
+      fetch-depth: 0  # Full history needed for diff
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.10
+  - name: Set up Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: 3.10
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
+  - name: Install jq
+    run: sudo apt-get install -y jq
 
-      - name: Generate PR Diff
-        run: |
-          git fetch origin ${{ github.base_ref }}
-          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+  - name: Generate PR Diff
+    run: |
+      git fetch origin ${{ github.base_ref }}
+      git diff origin/${{ github.base_ref }}...HEAD > pr.diff
 
-      - name: Send Diff to Flask API via ngrok
-        run: |
-          curl -X POST "$NGROK_URL/analyze" \
-            -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$(cat pr.diff | sed 's/\"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
-            -o response.json
+  - name: Send Diff to Flask API via ngrok
+    run: |
+      curl -X POST "$NGROK_URL/analyze" \
+        -H "Content-Type: application/json" \
+        -d "{\"diff\": \"$(cat pr.diff | sed 's/\"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
+        -o response.json
 
-      - name: Extract analysis from response
-        run: |
-          analysis=$(jq -r '.analysis' response.json)
-          echo "$analysis" > comment.md
+  - name: Extract analysis from response
+    run: |
+      analysis=$(jq -r '.analysis' response.json)
+      echo "$analysis" > comment.md
 
-      - name: Comment on Pull Request
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+  - name: Comment on Pull Request
+    run: |
+      gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
 
