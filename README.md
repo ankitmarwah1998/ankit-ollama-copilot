@@ -6,3 +6,4 @@
 # Test Ollama Integration
 # Testing AI comment
 Test log save
+### Test: Save AI log in Markdown
