@@ -46,4 +46,3 @@ steps:
   - name: Comment on Pull Request
     run: |
       gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
-
