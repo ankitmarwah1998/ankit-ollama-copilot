@@ -6,6 +6,7 @@ on:
 
 jobs:
   analyze:
+    name: Analyze PR with Ollama
     runs-on: ubuntu-latest
 
     env:
@@ -13,10 +14,10 @@ jobs:
       NGROK_URL: ${{ secrets.NGROK_URL }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # needed for full diff
+          fetch-depth: 0  # Required for full diff history
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,7 +27,7 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Generate PR diff
+      - name: Generate PR Diff
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }}...HEAD > pr.diff
@@ -37,6 +38,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"diff\": \"$(cat pr.diff | sed 's/\"/\\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\"}" \
             -o response.json
+          echo "Raw response from API:"
           cat response.json
 
       - name: Extract AI analysis from response
@@ -44,7 +46,7 @@ jobs:
           analysis=$(jq -r '.message' response.json)
           echo "$analysis" > comment.md
 
-      - name: Comment on PR
+      - name: Comment on Pull Request
         run: |
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
 
