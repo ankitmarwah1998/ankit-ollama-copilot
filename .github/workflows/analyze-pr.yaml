@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required to compute full diff
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,15 +44,20 @@ jobs:
             echo "response.json is empty. Skipping comment."
             exit 0
           fi
+
           if ! jq empty response.json 2>/dev/null; then
-            echo "Invalid JSON in response.json. Skipping comment."
+            echo "Invalid JSON in response.json:"
             cat response.json
             exit 0
           fi
-          analysis=$(jq -r '.message // .analysis // "No analysis found."' response.json)
-          echo "$analysis" > comment.md
+
+          jq -r '.message // .analysis // "No analysis found."' response.json > comment.md
 
       - name: Comment on Pull Request
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+          if [ -f comment.md ]; then
+            gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+          else
+            echo "comment.md not found. Skipping PR comment."
+          fi
 
