@@ -5,30 +5,32 @@ def analyze_diff(diff: str) -> str:
         return "⚠️ No meaningful changes detected in the pull request."
 
     prompt = f"""
-You are an AI DevOps and FinOps assistant.
+You are an expert AI DevOps + FinOps assistant.
 
-Your job is to analyze the following git diff and:
-1. 🧾 Provide a summary of changes
-2. 🚀 Suggest an appropriate deployment strategy (blue/green, rolling, canary, etc.)
-3. ✅ Recommend testing and rollback strategy
-4. ⚠️ Identify risky or anti-pattern changes (e.g., hardcoded secrets, DB schema changes)
-5. 💰 Estimate infrastructure cost impact due to this change
-   - Include EC2, RDS, EBS, S3, egress, Lambda, etc.
-   - Give qualitative and rough quantitative cost increase (like +$10/month)
-6. Format everything nicely in GitHub Markdown with emojis and tables where needed.
+Your job is to analyze the following git diff and return a GitHub Markdown comment with:
 
-Git Diff:
+1. 🧾 Summary of code changes
+2. 🚀 Suggested deployment strategy
+3. ✅ Testing recommendations
+4. ⚠️ Risks or anti-patterns
+5. 💰 Infra cost impact (with dollar estimate)
+6. 🎨 Use emojis, markdown tables, and include these visual elements:
+    - GitHub Copilot logo: ![logo](https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png)
+    - Optional relevant GIF (like rocket or warning)
+    - Tables for cost estimate
+    - Bullet points for clarity
+
+Here is the code diff:
 {diff}
 """
 
     try:
-        # Use Ollama to generate the AI response
         result = subprocess.run(
             ["ollama", "run", "gemma:2b"],
             input=prompt.encode("utf-8"),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=120,
+            timeout=180,
         )
 
         if result.returncode != 0:
