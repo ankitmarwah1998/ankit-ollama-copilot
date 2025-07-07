@@ -1,20 +1,26 @@
 from flask import Flask, request, jsonify
-from model import analyze_diff  # Assuming you use a function to call Ollama or process the diff
+from model import analyze_diff, estimate_cost_from_infra
 
 app = Flask(__name__)
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.get_json()
-    diff = data.get("diff", "")
+    if not data:
+        return jsonify({"error": "No JSON body received"}), 400
 
-    if not diff:
-        return jsonify({"error": "No diff provided"}), 400
+    if "diff" in data:
+        diff = data["diff"]
+        analysis = analyze_diff(diff)
+        return jsonify({"analysis": analysis})
 
-    # ✅ Call AI logic here
-    result = analyze_diff(diff)  # Replace this with your actual logic
+    elif "infra" in data:
+        path = data.get("infra", "infra.yaml")
+        analysis = estimate_cost_from_infra(path)
+        return jsonify({"analysis": analysis})
 
-    return jsonify({"analysis": result})  # ✅ This is what GitHub Action expects
+    else:
+        return jsonify({"error": "Invalid payload. Expected 'diff' or 'infra' key."}), 400
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

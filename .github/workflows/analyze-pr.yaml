@@ -1,4 +1,4 @@
-name: Analyze PR with Ollama
+name: Analyze PR with Ollama and Cost Estimator
 
 on:
   pull_request:
@@ -19,7 +19,7 @@ jobs:
 
       - name: 📦 Install dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt || true
 
       - name: 📤 Generate PR Diff
         run: |
@@ -27,17 +27,37 @@ jobs:
           git fetch origin
           git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
-      - name: 🤖 Send Diff to Ollama API (via ngrok)
+      - name: 🤖 Send Diff to Flask API (AI Suggestion)
         run: |
-          DIFF=$(cat pr.diff | jq -Rs .)
-          echo "{\"diff\": $DIFF}" > payload.json
+          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
           curl -X POST ${{ secrets.NGROK_URL }}/analyze \
             -H "Content-Type: application/json" \
-            -d @payload.json \
-            > response.json
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" > diff_response.json || echo '{}' > diff_response.json
 
-      - name: 🔁 Add Ollama AI Response to PR as Comment
-        run: bash scripts/comment-pr.sh
+      - name: 💰 Send Infra File to Flask API (Cost Estimation)
+        run: |
+          if [ -f infra.yaml ]; then
+            curl -X POST ${{ secrets.NGROK_URL }}/analyze \
+              -H "Content-Type: application/json" \
+              -d '{"infra": "infra.yaml"}' > infra_response.json
+          else
+            echo '{"analysis": "⚠️ No infra.yaml file found for cost estimation."}' > infra_response.json
+          fi
+
+      - name: 📝 Combine AI and Cost Analysis
+        run: |
+          AI_ANALYSIS=$(jq -r '.analysis' diff_response.json)
+          COST_ESTIMATION=$(jq -r '.analysis' infra_response.json)
+
+          echo "### 🤖 AI Code Review Suggestion:" > comment.md
+          echo "$AI_ANALYSIS" >> comment.md
+          echo "" >> comment.md
+          echo "### 💰 Estimated Infra Cost Impact:" >> comment.md
+          echo "$COST_ESTIMATION" >> comment.md
+
+      - name: 💬 Post Comment to PR
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
