@@ -1,0 +1,37 @@
+ec2_instances:
+  - type: t3.medium
+    count: 3
+  - type: t3.small
+    count: 2
+
+rds_instances:
+  - type: db.t3.medium
+    count: 1
+
+s3_buckets:
+  - name: logs-bucket
+    size_gb: 50
+    access_frequency: daily
+
+kubernetes_nodes:
+  - type: m5.large
+    count: 4
+
+monitoring:
+  - tools:
+      - prometheus
+      - grafana
+
+networking:
+  - vpc: true
+  - nat_gateways: 1
+  - load_balancers:
+      - type: application
+        count: 1
+
+storage:
+  - ebs_volumes:
+      - type: gp3
+        size_gb: 100
+        count: 3
+

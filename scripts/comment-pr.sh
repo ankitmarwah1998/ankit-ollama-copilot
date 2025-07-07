@@ -1,10 +1,13 @@
 #!/bin/bash
 
-# Load response safely
-RESPONSE=$(cat response.json)
+AI_ANALYSIS=$(jq -r '.analysis' diff_response.json)
+COST_ESTIMATION=$(jq -r '.analysis' infra_response.json)
 
-# Escape newlines
-ESCAPED=$(echo "$RESPONSE" | sed ':a;N;$!ba;s/\n/\\n/g')
+echo "### 🤖 AI Code Review Suggestion:" > comment.md
+echo "$AI_ANALYSIS" >> comment.md
+echo "" >> comment.md
+echo "### 💰 Estimated Infra Cost Impact:" >> comment.md
+echo "$COST_ESTIMATION" >> comment.md
 
-# Add comment to PR
-gh pr comment "$PR_URL" --body "$ESCAPED"
+gh pr comment "${PR_NUMBER}" --body-file comment.md
+
