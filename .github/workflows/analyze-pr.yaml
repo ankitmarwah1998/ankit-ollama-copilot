@@ -1,4 +1,4 @@
-name: Analyze PR with Ollama and Cost Estimator
+name: Analyze PR with AI Copilot
 
 on:
   pull_request:
@@ -19,7 +19,7 @@ jobs:
 
       - name: 📦 Install dependencies
         run: |
-          pip install -r requirements.txt || true
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: 📤 Generate PR Diff
         run: |
@@ -30,32 +30,33 @@ jobs:
       - name: 🤖 Send Diff to Flask API (AI Suggestion)
         run: |
           ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST ${{ secrets.NGROK_URL }}/analyze \
+          curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$ESCAPED_DIFF\"}" > diff_response.json || echo '{}' > diff_response.json
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" | jq '.' > diff_response.json || echo '{"analysis":"⚠️ Failed to get AI response"}' > diff_response.json
 
       - name: 💰 Send Infra File to Flask API (Cost Estimation)
         run: |
           if [ -f infra.yaml ]; then
-            curl -X POST ${{ secrets.NGROK_URL }}/analyze \
+            ESCAPED_INFRA=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' infra.yaml)
+            curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
               -H "Content-Type: application/json" \
-              -d '{"infra": "infra.yaml"}' > infra_response.json
+              -d "{\"infra\": \"$ESCAPED_INFRA\"}" | jq '.' > infra_response.json || echo '{"analysis":"⚠️ Failed to get cost estimate"}' > infra_response.json
           else
             echo '{"analysis": "⚠️ No infra.yaml file found for cost estimation."}' > infra_response.json
           fi
 
-      - name: 📝 Combine AI and Cost Analysis
+      - name: 📝 Build PR Comment
         run: |
           AI_ANALYSIS=$(jq -r '.analysis' diff_response.json)
           COST_ESTIMATION=$(jq -r '.analysis' infra_response.json)
-
+          
           echo "### 🤖 AI Code Review Suggestion:" > comment.md
           echo "$AI_ANALYSIS" >> comment.md
           echo "" >> comment.md
           echo "### 💰 Estimated Infra Cost Impact:" >> comment.md
           echo "$COST_ESTIMATION" >> comment.md
 
-      - name: 💬 Post Comment to PR
+      - name: 💬 Comment on PR
         run: |
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
         env:
