@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from model import generate_ai_suggestion, generate_cost_estimation
 
 app = Flask(__name__)
 
@@ -6,12 +7,20 @@ app = Flask(__name__)
 def analyze():
     data = request.get_json()
     diff = data.get("diff", "")
-    
-    if not diff:
-        return jsonify({"error": "No diff provided"}), 400
+    if not diff.strip():
+        return jsonify({"analysis": "⚠️ No diff provided."}), 400
+    result = generate_ai_suggestion(diff)
+    return jsonify({"analysis": result})
 
-    return jsonify({"message": f"Received diff of length {len(diff)}"})
+@app.route("/estimate", methods=["POST"])
+def estimate():
+    data = request.get_json()
+    infra = data.get("infra", "")
+    if not infra.strip():
+        return jsonify({"analysis": "⚠️ No infra content provided."}), 400
+    result = generate_cost_estimation(infra)
+    return jsonify({"analysis": result})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
 

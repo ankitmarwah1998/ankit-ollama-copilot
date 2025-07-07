@@ -1,0 +1,24 @@
+ec2_instances:
+  - type: t3.medium
+  - type: t3.medium
+  - type: t2.micro
+  - type: g4dn.xlarge  # GPU instance
+
+rds_instances:
+  - engine: postgres
+    size: db.t3.medium
+
+s3_buckets:
+  - name: my-app-logs
+  - name: backups
+
+k8s:
+  replicas:
+    web: 3
+    api: 2
+
+monitoring:
+  tools:
+    - prometheus
+    - grafana
+

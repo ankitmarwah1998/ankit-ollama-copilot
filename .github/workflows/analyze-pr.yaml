@@ -2,44 +2,65 @@ name: Analyze PR with Ollama
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repo
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
-      - name: 🛠 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: 📦 Install dependencies
+      - name: 🧪 Generate PR diff
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
 
-      - name: 📤 Generate PR Diff
+      - name: 📄 Read IaC/infra content
         run: |
-          git fetch --unshallow || true
-          git fetch origin
-          git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
-          # git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          # git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
-          # git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
+          if [ -f "infra.tf" ]; then cat infra.tf > infra_content.txt
+          elif [ -f "infrastructure.yaml" ]; then cat infrastructure.yaml > infra_content.txt
+          elif [ -f "iac.json" ]; then cat iac.json > infra_content.txt
+          else echo "No infra file found" > infra_content.txt; fi
 
-      - name: 🤖 Send Diff to Ollama API
+      - name: 🤖 Call AI API for Code Review
         run: |
-          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+          set -e
+          RESPONSE=$(curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
-            > response.json
+            -d "$(jq -Rs '{diff: .}' pr.diff)" || echo '{"analysis":"⚠️ Failed to get AI response"}')
+          echo "$RESPONSE" > diff_response.json
 
-      - name: 🔁 Add Ollama AI Response to PR as Comment
-        run: bash scripts/comment-pr.sh
+      - name: 💰 Call AI API for Infra Cost Estimation
+        run: |
+          set -e
+          RESPONSE=$(curl -s -X POST "${{ secrets.NGROK_URL }}/estimate" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -Rs '{infra: .}' infra_content.txt)" || echo '{"analysis":"⚠️ Failed to get cost estimation"}')
+          echo "$RESPONSE" > infra_response.json
+
+      - name: 🪵 Debug:Show AI response
+        run: |
+          echo "===== DIFF ANALYSIS ====="
+          cat diff_response.json
+          echo "===== COST ESTIMATION ====="
+          cat infra_response.json
+
+      - name: 📝 Create comment markdown
+        run: |
+          AI_ANALYSIS=$(jq -r '.analysis' diff_response.json)
+          COST_ESTIMATION=$(jq -r '.analysis' infra_response.json)
+
+          echo "### 🤖 AI Code Review Suggestion:" > comment.md
+          echo "$AI_ANALYSIS" >> comment.md
+          echo "" >> comment.md
+          echo "### 💰 Estimated Infra Cost Impact:" >> comment.md
+          echo "$COST_ESTIMATION" >> comment.md
+
+      - name: 💬 Post comment on PR
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_EVENT_PATH: ${{ github.event_path }}
+
