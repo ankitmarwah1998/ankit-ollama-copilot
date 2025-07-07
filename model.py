@@ -7,20 +7,38 @@ def analyze_diff(diff: str) -> str:
     prompt = f"""
 You are an expert AI DevOps + FinOps assistant.
 
-Your job is to analyze the following git diff and return a GitHub Markdown comment with:
+Analyze the following `git diff` and provide a GitHub Markdown comment with:
 
-1. 🧾 Summary of code changes
-2. 🚀 Suggested deployment strategy
-3. ✅ Testing recommendations
-4. ⚠️ Risks or anti-patterns
-5. 💰 Infra cost impact (with dollar estimate)
-6. 🎨 Use emojis, markdown tables, and include these visual elements:
-    - GitHub Copilot logo: ![logo](https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png)
-    - Optional relevant GIF (like rocket or warning)
-    - Tables for cost estimate
-    - Bullet points for clarity
+---
 
-Here is the code diff:
+**🧾 Code Summary:**  
+Summarize what was changed.
+
+**🚀 Deployment Strategy:**  
+What deployment strategy should be used (rolling, blue-green, canary, etc.)?
+
+**🔧 Infra/Config Changes:**  
+Any infrastructure or config changes detected?
+
+**✅ Testing Plan:**  
+What tests should be added or verified?
+
+**⚠️ Red Flags or Anti-Patterns:**  
+Any risky code or practices?
+
+**💰 Infra Cost Estimate:**  
+Rough estimate of cloud resource cost impact (monthly/daily if applicable) based on changes. Format this in a table like:
+
+| Resource | Description | Est. Monthly Cost |
+|----------|-------------|-------------------|
+| EC2 | Added instance for worker | ~$12.00 |
+| S3 | Logging added | ~$0.10 |
+| **Total** |             | **~$12.10** |
+
+---
+
+Now analyze this git diff:
+
 {diff}
 """
 
