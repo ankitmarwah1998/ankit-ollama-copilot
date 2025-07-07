@@ -1,43 +1,47 @@
-import requests
+import subprocess
+import json
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "gemma:2b"
+def analyze_diff(diff_text):
+    if not diff_text.strip():
+        return "⚠️ No code changes detected."
 
-def analyze_diff(diff):
-    if not diff.strip():
-        return "No meaningful changes detected."
-
-    prompt = f"""You are a DevOps assistant. Analyze the following Git diff and provide:
-1. Summary of code changes
-2. Suggested deployment strategy
-3. Testing impact
-4. Any red flags or anti-patterns
-
-Git Diff:
-{diff}
-"""
-    return query_ollama(prompt)
-
-
-def estimate_cost(infra_yaml):
-    if not infra_yaml.strip():
-        return "No infra content provided."
-
-    prompt = f"""You are a cloud infrastructure cost expert. Based on the following infrastructure configuration, estimate the **monthly cost impact** assuming default pricing on AWS. Summarize your reasoning clearly.
-
-Infrastructure Definition:
-{infra_yaml}
-"""
-    return query_ollama(prompt)
-
-
-def query_ollama(prompt):
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={"model": MODEL_NAME, "prompt": prompt, "stream": False}
+        ollama_prompt = f"Analyze the following Git diff and suggest improvements, testing strategies, red flags, and infrastructure recommendations:\n\n{diff_text}"
+        result = subprocess.run(
+            ["ollama", "run", "gemma:2b"],
+            input=ollama_prompt.encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30
         )
-        return response.json()["response"]
+
+        output = result.stdout.decode().strip()
+        if output:
+            return output
+        else:
+            return "⚠️ AI response was empty. Please verify Ollama is running."
     except Exception as e:
-        return f"⚠️ Failed to get AI response: {str(e)}"
+        return f"⚠️ Failed to analyze diff: {str(e)}"
+
+def estimate_cost(infra_text):
+    if not infra_text.strip():
+        return "⚠️ Infra file is empty or missing."
+
+    try:
+        ollama_prompt = f"""Analyze the following infrastructure configuration and estimate the monthly cost impact. Use realistic assumptions and include service-wise breakdown. Output in markdown:\n\n{infra_text}"""
+        result = subprocess.run(
+            ["ollama", "run", "gemma:2b"],
+            input=ollama_prompt.encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30
+        )
+
+        output = result.stdout.decode().strip()
+        if output:
+            return output
+        else:
+            return "⚠️ AI returned an empty response for cost estimation."
+    except Exception as e:
+        return f"⚠️ Failed to estimate cost: {str(e)}"
 
