@@ -1,10 +1,14 @@
 #!/bin/bash
 
-# Load response safely
-RESPONSE=$(cat response.json)
+# Extract PR number from event payload
+PR_NUMBER=$(jq --raw-output .number "$GITHUB_EVENT_PATH")
 
-# Escape newlines
-ESCAPED=$(echo "$RESPONSE" | sed ':a;N;$!ba;s/\n/\\n/g')
+# Extract analysis from response.json
+analysis=$(jq -r '.analysis' response.json)
 
-# Add comment to PR
-gh pr comment "$PR_URL" --body "$ESCAPED"
+# Save to a markdown file
+echo "$analysis" > comment.md
+
+# Post comment to PR
+gh pr comment "$PR_NUMBER" --body-file comment.md
+
