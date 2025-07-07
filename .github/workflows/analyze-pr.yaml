@@ -40,7 +40,7 @@ jobs:
             -d "$(jq -Rs '{infra: .}' infra_content.txt)" || echo '{"analysis":"⚠️ Failed to get cost estimation"}')
           echo "$RESPONSE" > infra_response.json
 
-      - name: 🪵 Debug: Show AI response
+      - name: 🪵 Debug:Show AI response
         run: |
           echo "===== DIFF ANALYSIS ====="
           cat diff_response.json
