@@ -33,7 +33,7 @@ jobs:
       - name: 🤖 Send Diff to Ollama API
         run: |
           ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+          curl -X POST https://c11b-182-74-161-50.ngrok-free.app \
             -H "Content-Type: application/json" \
             -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
             > response.json
