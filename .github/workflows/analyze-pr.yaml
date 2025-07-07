@@ -1,4 +1,4 @@
-name: Analyze PR with AI Copilot
+name: Analyze PR with Ollama
 
 on:
   pull_request:
@@ -9,8 +9,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repo
+      - name: 🧾 Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Needed for full diff
 
       - name: 🛠 Set up Python
         uses: actions/setup-python@v4
@@ -19,44 +21,50 @@ jobs:
 
       - name: 📦 Install dependencies
         run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt || true
+          sudo apt update && sudo apt install -y jq
 
       - name: 📤 Generate PR Diff
         run: |
-          git fetch --unshallow || true
           git fetch origin
           git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
-      - name: 🤖 Send Diff to Flask API (AI Suggestion)
+      - name: 📄 Extract infra.yaml content
+        run: |
+          if [ -f infra.yaml ]; then
+            cp infra.yaml infra.yaml.temp
+          else
+            echo "" > infra.yaml.temp
+          fi
+
+      - name: 🤖 Send PR Diff to Ollama API
         run: |
           ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
           curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$ESCAPED_DIFF\"}" | jq '.' > diff_response.json || echo '{"analysis":"⚠️ Failed to get AI response"}' > diff_response.json
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
+            > diff_response.json
 
-      - name: 💰 Send Infra File to Flask API (Cost Estimation)
+      - name: 🤖 Send Infra.yaml to Ollama API
         run: |
-          if [ -f infra.yaml ]; then
-            ESCAPED_INFRA=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' infra.yaml)
-            curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
-              -H "Content-Type: application/json" \
-              -d "{\"infra\": \"$ESCAPED_INFRA\"}" | jq '.' > infra_response.json || echo '{"analysis":"⚠️ Failed to get cost estimate"}' > infra_response.json
-          else
-            echo '{"analysis": "⚠️ No infra.yaml file found for cost estimation."}' > infra_response.json
-          fi
+          ESCAPED_INFRA=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' infra.yaml.temp)
+          curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
+            -H "Content-Type: application/json" \
+            -d "{\"infra\": \"$ESCAPED_INFRA\"}" \
+            > infra_response.json
 
-      - name: 📝 Build PR Comment
+      - name: 💬 Create Markdown Comment
         run: |
-          AI_ANALYSIS=$(jq -r '.analysis' diff_response.json)
-          COST_ESTIMATION=$(jq -r '.analysis' infra_response.json)
-          
-          echo "### 🤖 AI Code Review Suggestion:" > comment.md
+          AI_ANALYSIS=$(jq -r '.analysis' diff_response.json 2>/dev/null || echo "⚠️ Failed to get AI response")
+          COST_ESTIMATION=$(jq -r '.analysis' infra_response.json 2>/dev/null || echo "⚠️ Failed to get cost estimation")
+
+          echo "### 🤖 **AI Code Review Suggestion:**" > comment.md
           echo "$AI_ANALYSIS" >> comment.md
           echo "" >> comment.md
-          echo "### 💰 Estimated Infra Cost Impact:" >> comment.md
+          echo "### 💰 **Estimated Infra Cost Impact:**" >> comment.md
           echo "$COST_ESTIMATION" >> comment.md
 
-      - name: 💬 Comment on PR
+      - name: 💬 Post AI Comment on PR
         run: |
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
         env:

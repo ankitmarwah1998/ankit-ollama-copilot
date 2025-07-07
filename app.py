@@ -1,27 +1,27 @@
 from flask import Flask, request, jsonify
-from model import analyze_diff, estimate_cost_from_infra
+from model import analyze_diff, estimate_cost
 
 app = Flask(__name__)
 
-@app.route("/analyze", methods=["POST"])
+@app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.get_json()
+
     if not data:
-        return jsonify({"error": "No JSON body received"}), 400
+        return jsonify({"error": "❌ No JSON received"}), 400
 
-    if "diff" in data:
-        diff = data["diff"]
-        analysis = analyze_diff(diff)
+    # If "diff" key is present, handle diff analysis
+    if "diff" in data and data["diff"].strip():
+        analysis = analyze_diff(data["diff"])
         return jsonify({"analysis": analysis})
 
-    elif "infra" in data:
-        path = data.get("infra", "infra.yaml")
-        analysis = estimate_cost_from_infra(path)
-        return jsonify({"analysis": analysis})
+    # If "infra" key is present, handle cost estimation
+    if "infra" in data and data["infra"].strip():
+        cost_estimate = estimate_cost(data["infra"])
+        return jsonify({"analysis": cost_estimate})
 
-    else:
-        return jsonify({"error": "Invalid payload. Expected 'diff' or 'infra' key."}), 400
+    return jsonify({"error": "❌ No valid 'diff' or 'infra' provided"}), 400
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
 
