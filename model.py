@@ -1,16 +1,14 @@
 import requests
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "gemma:2b"
+MODEL = "gemma:2b"
 
-def analyze_diff(diff):
-    if not diff.strip():
-        return "⚠️ No code changes detected."
-
-    prompt = f"""You are an AI DevOps assistant. Analyze the following Git diff and provide:
+def generate_ai_suggestion(diff):
+    prompt = f"""
+You are an AI DevOps assistant. Analyze the following Git diff and provide:
 - Summary of code changes
 - Suggested deployment strategy
-- Any configuration/IaC impacts
+- Configuration/IaC changes
 - Testing recommendations
 - Red flags or anti-patterns
 
@@ -18,31 +16,28 @@ Git Diff:
 {diff}
 """
     response = requests.post(OLLAMA_URL, json={
-        "model": MODEL_NAME,
+        "model": MODEL,
         "prompt": prompt,
         "stream": False
     })
-
     if response.status_code == 200:
-        return response.json().get("response", "⚠️ AI returned no response.")
+        return response.json().get("response", "⚠️ AI returned empty response.")
     return "⚠️ Failed to get AI response"
 
-def estimate_cost(infra_content):
-    if not infra_content.strip():
-        return "⚠️ No infrastructure changes detected."
+def generate_cost_estimation(infra_content):
+    prompt = f"""
+Estimate monthly infrastructure cost based on this IaC config:
 
-    prompt = f"""Estimate the monthly infrastructure cost based on this configuration:
 {infra_content}
 
-Provide base price, additional costs, and total monthly estimate. Assume common AWS pricing."""
-    
+Include base price breakdown, additional costs (networking, monitoring), and total estimate.
+"""
     response = requests.post(OLLAMA_URL, json={
-        "model": MODEL_NAME,
+        "model": MODEL,
         "prompt": prompt,
         "stream": False
     })
-
     if response.status_code == 200:
-        return response.json().get("response", "⚠️ AI returned no cost estimation.")
+        return response.json().get("response", "⚠️ AI returned empty cost estimate.")
     return "⚠️ Failed to get cost estimation"
 

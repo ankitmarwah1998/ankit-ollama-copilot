@@ -1,27 +1,26 @@
 from flask import Flask, request, jsonify
-from model import analyze_diff, estimate_cost
+from model import generate_ai_suggestion, generate_cost_estimation
 
 app = Flask(__name__)
 
-@app.route('/analyze', methods=['POST'])
+@app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.get_json()
+    diff = data.get("diff", "")
+    if not diff.strip():
+        return jsonify({"analysis": "⚠️ No diff provided."}), 400
+    result = generate_ai_suggestion(diff)
+    return jsonify({"analysis": result})
 
-    if not data:
-        return jsonify({"error": "❌ No JSON received"}), 400
+@app.route("/estimate", methods=["POST"])
+def estimate():
+    data = request.get_json()
+    infra = data.get("infra", "")
+    if not infra.strip():
+        return jsonify({"analysis": "⚠️ No infra content provided."}), 400
+    result = generate_cost_estimation(infra)
+    return jsonify({"analysis": result})
 
-    # If "diff" key is present, handle diff analysis
-    if "diff" in data and data["diff"].strip():
-        analysis = analyze_diff(data["diff"])
-        return jsonify({"analysis": analysis})
-
-    # If "infra" key is present, handle cost estimation
-    if "infra" in data and data["infra"].strip():
-        cost_estimate = estimate_cost(data["infra"])
-        return jsonify({"analysis": cost_estimate})
-
-    return jsonify({"error": "❌ No valid 'diff' or 'infra' provided"}), 400
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(debug=True)
 
