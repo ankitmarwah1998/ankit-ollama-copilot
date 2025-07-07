@@ -9,39 +9,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
-      - name: 🔍 Extract PR diff
+      - name: 🧪 Generate PR diff
         run: |
-          gh pr diff ${{ github.event.pull_request.number }} > pr.diff
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
 
-      - name: 📄 Read infra file
+      - name: 📄 Read IaC/infra content
         run: |
-          cat infra/main.tf > infra_content.txt || echo "No infra file found" > infra_content.txt
-
-      - name: 🔧 Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl
+          if [ -f "infra.tf" ]; then cat infra.tf > infra_content.txt
+          elif [ -f "infrastructure.yaml" ]; then cat infrastructure.yaml > infra_content.txt
+          elif [ -f "iac.json" ]; then cat iac.json > infra_content.txt
+          else echo "No infra file found" > infra_content.txt; fi
 
       - name: 🤖 Call AI API for Code Review
         run: |
-          curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
+          set -e
+          RESPONSE=$(curl -s -X POST "${{ secrets.NGROK_URL }}/analyze" \
             -H "Content-Type: application/json" \
-            -d "$(jq -Rs '{diff: .}' pr.diff)" \
-            -o diff_response.json || echo '{"analysis":"[!] Failed to get AI response"}' > diff_response.json
+            -d "$(jq -Rs '{diff: .}' pr.diff)" || echo '{"analysis":"⚠️ Failed to get AI response"}')
+          echo "$RESPONSE" > diff_response.json
 
       - name: 💰 Call AI API for Infra Cost Estimation
         run: |
-          curl -s -X POST "${{ secrets.NGROK_URL }}/estimate" \
+          set -e
+          RESPONSE=$(curl -s -X POST "${{ secrets.NGROK_URL }}/estimate" \
             -H "Content-Type: application/json" \
-            -d "$(jq -Rs '{infra: .}' infra_content.txt)" \
-            -o infra_response.json || echo '{"analysis":"[!] Failed to get cost estimation"}' > infra_response.json
+            -d "$(jq -Rs '{infra: .}' infra_content.txt)" || echo '{"analysis":"⚠️ Failed to get cost estimation"}')
+          echo "$RESPONSE" > infra_response.json
 
-      - name: 🐛 Debug: Show AI response
+      - name: 🪵 Debug: Show AI response
         run: |
           echo "===== DIFF ANALYSIS ====="
           cat diff_response.json
