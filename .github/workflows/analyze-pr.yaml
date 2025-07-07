@@ -26,20 +26,16 @@ jobs:
           git fetch --unshallow || true
           git fetch origin
           git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
-          # git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          # git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
-          # git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
 
       - name: 🤖 Send Diff to Ollama API
         run: |
           ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST https://c11b-182-74-161-50.ngrok-free.app \
+          curl -X POST "${{ secrets.NGROK_URL }}/analyze" \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
-            > response.json
+            -d "{\"diff\": \"$ESCAPED_DIFF\"}" > response.json
 
       - name: 🔁 Add Ollama AI Response to PR as Comment
         run: bash scripts/comment-pr.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_EVENT_PATH: ${{ github.event_path }}
+
