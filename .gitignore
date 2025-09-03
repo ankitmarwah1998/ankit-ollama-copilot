@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+.env/
+
+# Logs
+logs/
+*.log
+
+# Temporary workflow files
+pr.diff
+response.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
