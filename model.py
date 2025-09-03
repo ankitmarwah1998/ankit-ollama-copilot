@@ -31,8 +31,13 @@ Analyze the following code diff and provide a detailed response including:
 2. Recommended deployment strategy
 3. Infrastructure components impacted
 4. Estimated cloud cost impact (CPU, memory, storage, network)
+   - Provide approximate cost in USD assuming deployment on cloud (AWS/Google/Azure)
+   - Include CPU hours, memory usage, storage cost if applicable
 5. Tests to run before deploying
 6. Additional notes / risks
+
+Assume deployment on 1 small cloud instance (e.g., AWS t3.micro) for 24 hours.
+Consider the impact of added functions or new features on cloud usage.
 
 Diff:
 {diff_text}
