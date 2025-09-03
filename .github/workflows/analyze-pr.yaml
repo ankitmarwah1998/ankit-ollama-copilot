@@ -1,4 +1,4 @@
-name: Analyze PR with Ollama
+name: Analyze Pull Request
 
 on:
   pull_request:
@@ -8,38 +8,63 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
 
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NGROK_URL: ${{ secrets.NGROK_URL }}
+
     steps:
-      - name: 🧾 Checkout repo
-        uses: actions/checkout@v3
-
-      - name: 🛠 Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          python-version: '3.10'
+          fetch-depth: 0
 
-      - name: 📦 Install dependencies
-        run: |
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-      - name: 📤 Generate PR Diff
-        run: |
-          git fetch --unshallow || true
-          git fetch origin
-          git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
-          # git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          # git fetch origin ${{ github.event.pull_request.head.ref }} --depth=1
-          # git diff origin/${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }} > pr.diff
+      - name: Install jq
+        run: sudo apt-get install -y jq
 
-      - name: 🤖 Send Diff to Ollama API
+      - name: Generate PR Diff
         run: |
-          ESCAPED_DIFF=$(sed ':a;N;$!ba;s/"/\\"/g;s/\n/\\n/g' pr.diff)
-          curl -X POST https://5b87-182-74-161-50.ngrok-free.app \
+          git fetch origin ${{ github.base_ref }}
+
+          # Only include relevant file types
+          git diff origin/${{ github.base_ref }}...HEAD -- \
+            '*.py' '*.yml' '*.yaml' '*.sh' '*.md' > pr.diff || true
+
+          if [ ! -s pr.diff ]; then
+            echo "No relevant changes detected." > pr.diff
+          fi
+
+          jq -Rs '{diff: .}' pr.diff > pr.json
+
+      - name: Send Diff to Flask API via ngrok
+        run: |
+          curl -X POST "$NGROK_URL/analyze" \
             -H "Content-Type: application/json" \
-            -d "{\"diff\": \"$ESCAPED_DIFF\"}" \
-            > response.json
+            --data-binary @pr.json \
+            -o response.json
 
-      - name: 🔁 Add Ollama AI Response to PR as Comment
+      - name: Extract AI analysis from response
+        run: |
+          if [ ! -s response.json ]; then
+            echo "response.json is empty. Skipping comment."
+            exit 0
+          fi
+
+          if ! jq empty response.json 2>/dev/null; then
+            echo "Invalid JSON in response.json:"
+            cat response.json
+            exit 0
+          fi
+
+          jq -r '.message // .analysis // "No analysis found."' response.json > comment.md
+
+      - name: Comment on Pull Request
         run: bash scripts/comment-pr.sh
         env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_EVENT_PATH: ${{ github.event_path }}
+

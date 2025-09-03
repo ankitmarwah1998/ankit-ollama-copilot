@@ -1,10 +1,17 @@
 #!/bin/bash
+set -e
 
-# Load response safely
-RESPONSE=$(cat response.json)
+PR_NUMBER="${PR_NUMBER:-${GITHUB_EVENT_PULL_REQUEST_NUMBER}}"
+if [ -z "$PR_NUMBER" ]; then
+  echo "PR number not found. Exiting."
+  exit 1
+fi
 
-# Escape newlines
-ESCAPED=$(echo "$RESPONSE" | sed ':a;N;$!ba;s/\n/\\n/g')
+if [ ! -f comment.md ]; then
+  echo "comment.md not found. Skipping PR comment."
+  exit 0
+fi
 
-# Add comment to PR
-gh pr comment "$PR_URL" --body "$ESCAPED"
+echo "Posting AI analysis to PR #$PR_NUMBER..."
+gh pr comment "$PR_NUMBER" --body-file comment.md
+
