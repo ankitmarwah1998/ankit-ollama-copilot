@@ -26,16 +26,13 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq
 
-      - name: Generate PR Diff
+      - name: Generate PR Diff (Full Repo)
         run: |
           git fetch origin ${{ github.base_ref }}
-
-          # Only include relevant file types
-          git diff origin/${{ github.base_ref }}...HEAD -- \
-            '*.py' '*.yml' '*.yaml' '*.sh' '*.md' > pr.diff || true
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff || true
 
           if [ ! -s pr.diff ]; then
-            echo "No relevant changes detected." > pr.diff
+            echo "No changes detected in the repo." > pr.diff
           fi
 
           jq -Rs '{diff: .}' pr.diff > pr.json
@@ -60,7 +57,7 @@ jobs:
             exit 0
           fi
 
-          jq -r '.message // .analysis // "No analysis found."' response.json > comment.md
+          jq -r '.message // "No analysis found."' response.json > comment.md
 
       - name: Comment on Pull Request
         run: bash scripts/comment-pr.sh
